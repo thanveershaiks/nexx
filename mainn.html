@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Student Attendance Terminal</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #0f172a; --card: #1e293b; --border: #334155; --accent: #6366f1; --accent2: #10b981; --text: #f1f5f9; --muted: #94a3b8; --radius: 14px; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .container { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px; }
+  .app-title { font-size: 1.6rem; font-weight: 700; color: var(--accent); text-align: center; }
+  .app-sub { color: var(--muted); font-size: 0.9rem; text-align: center; margin-top: -8px; margin-bottom: 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .card-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px; }
+  input[type=text] { width: 100%; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.95rem; outline: none; margin-bottom: 12px; }
+  input[type=text]:focus { border-color: var(--accent); }
+  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #statusLog { background: #020617; border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-height: 70px; font-family: monospace; font-size: 0.8rem; color: #7dd3fc; word-break: break-all; }
+  #successScreen { display: none; text-align: center; flex-direction: column; gap: 12px; }
+  .error-box { background: rgba(244,63,94,0.1); border: 1px solid #f43f5e; color: #fb7185; padding: 15px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 10px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="container" id="mainLayout">
+  <div id="browserError" class="error-box"></div>
+  
+  <div><div class="app-title">🎓 Student Terminal</div><div class="app-sub">Submit attendance directly over BLE wireless</div></div>
+  
+  <div class="card">
+    <div class="card-title">Personal Credentials</div>
+    <input type="text" id="stuName" placeholder="Enter Full Name" />
+    <input type="text" id="stuRoll" placeholder="Enter Roll Number" />
+  </div>
+
+  <button class="btn btn-primary" id="actionBtn" onclick="transmitAttendance()">Transmit Attendance Record</button>
+  
+  <div class="card"><div class="card-title">Console Terminal Connection Log</div><div id="statusLog">Awaiting validation parameters...</div></div>
+</div>
+
+<div class="container" id="successScreen">
+  <div style="font-size: 4rem;">🎉</div>
+  <div style="font-size: 1.6rem; font-weight: 800; color: #10b981;">Attendance Verified</div>
+  <p id="successMessage" style="color: #94a3b8; font-size: 0.95rem;"></p>
+  <button class="btn btn-primary" style="margin-top: 12px;" onclick="resetForm()">Submit Another Entry</button>
+</div>
+
+<script>
+  const ROOM_SERVICE_UUID = '8ce255c0-200a-11e0-ac64-0800200c9a66';
+  const DATA_CHAR_UUID    = '8ce255c1-200a-11e0-ac64-0800200c9a66';
+
+  // CHECK COMPATIBILITY IMMEDIATELY
+  window.onload = function() {
+    const errorBox = document.getElementById('browserError');
+    if (!navigator.bluetooth) {
+      errorBox.style.display = 'block';
+      if (window.location.protocol !== 'https:') {
+        errorBox.innerHTML = "<strong>Security Error:</strong> Bluetooth requires an <b>HTTPS</b> connection. Local files or HTTP sites are blocked.";
+      } else {
+        errorBox.innerHTML = "<strong>Browser Error:</strong> Your browser doesn't support Web Bluetooth. Use <b>Chrome on Android</b> or <b>Bluefy on iPhone</b>.";
+      }
+      document.getElementById('actionBtn').disabled = true;
+    }
+  };
+
+  function displayLog(msg) { document.getElementById('statusLog').innerHTML = msg; }
+
+  async function transmitAttendance() {
+    const name = document.getElementById('stuName').value.trim();
+    const roll = document.getElementById('stuRoll').value.trim();
+    const actionBtn = document.getElementById('actionBtn');
+
+    if (!name || !roll) { displayLog("⚠️ Please enter Name and Roll No."); return; }
+
+    const structuredPayload = `${name}|${roll}`;
+    actionBtn.disabled = true;
+    actionBtn.innerHTML = 'Connecting...';
+    displayLog("Searching for Teacher (Make sure Teacher clicked 'Start Hosting')...");
+
+    try {
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [ROOM_SERVICE_UUID] }]
+      });
+
+      displayLog("Connecting...");
+      const server = await device.gatt.connect();
+      
+      // Delay for connection stability
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      displayLog("Pushing Record...");
+      const service = await server.getPrimaryService(ROOM_SERVICE_UUID);
+      const char = await service.getCharacteristic(DATA_CHAR_UUID);
+
+      const data = new TextEncoder().encode(structuredPayload);
+      await char.writeValue(data);
+
+      displayLog("✅ Success!");
+      setTimeout(() => server.disconnect(), 500);
+
+      document.getElementById('mainLayout').style.display = 'none';
+      document.getElementById('successScreen').style.display = 'flex';
+      document.getElementById('successMessage').innerText = `${name} (${roll}) - Recorded via Bluetooth.`;
+
+    } catch (err) {
+      console.error(err);
+      displayLog(`❌ Error: ${err.message}`);
+      actionBtn.disabled = false;
+      actionBtn.innerHTML = 'Transmit Attendance Record';
+    }
+  }
+
+  function resetForm() { location.reload(); }
+</script>
+</body>
+</html>
