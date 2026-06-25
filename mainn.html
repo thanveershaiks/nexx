@@ -1,120 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>Student Attendance Terminal</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root { --bg: #0f172a; --card: #1e293b; --border: #334155; --accent: #6366f1; --accent2: #10b981; --text: #f1f5f9; --muted: #94a3b8; --radius: 14px; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-  .container { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px; }
-  .app-title { font-size: 1.6rem; font-weight: 700; color: var(--accent); text-align: center; }
-  .app-sub { color: var(--muted); font-size: 0.9rem; text-align: center; margin-top: -8px; margin-bottom: 12px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
-  .card-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px; }
-  input[type=text] { width: 100%; padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 0.95rem; outline: none; margin-bottom: 12px; }
-  input[type=text]:focus { border-color: var(--accent); }
-  .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
-  .btn:active { transform: scale(0.98); }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  #statusLog { background: #020617; border: 1px solid var(--border); border-radius: 10px; padding: 12px; min-height: 70px; font-family: monospace; font-size: 0.8rem; color: #7dd3fc; word-break: break-all; }
-  #successScreen { display: none; text-align: center; flex-direction: column; gap: 12px; }
-  .error-box { background: rgba(244,63,94,0.1); border: 1px solid #f43f5e; color: #fb7185; padding: 15px; border-radius: 10px; font-size: 0.85rem; margin-bottom: 10px; display: none; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>AttendX - Pure Frontend Biometric Test</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+    <style>
+        :root {
+            --bg: #0f1117; --surface: #161b27; --surface2: #1e2535; --border: #2a3f5f;
+            --text: #eef2ff; --text-muted: #8fa3c0; --indigo: #6366f1; --indigo-light: #818cf8;
+            --green: #10b981; --red: #f43f5e;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 420px; padding: 36px 32px; box-shadow: 0 24px 80px rgba(0,0,0,0.5); }
+        .header { text-align: center; margin-bottom: 24px; }
+        .logo-icon { width: 52px; height: 52px; background: var(--indigo); border-radius: 14px; display: grid; place-items: center; font-size: 1.5rem; color: #fff; margin: 0 auto 14px; font-weight: 800; }
+        h2 { margin: 0 0 6px 0; font-size: 1.5rem; font-weight: 800; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .tab-btn.active { background: var(--indigo); color: #fff; border-color: var(--indigo-light); }
+        .camera-container { position: relative; width: 100%; height: 220px; background: #000; border-radius: 12px; overflow: hidden; border: 1.5px solid var(--border); margin-bottom: 20px; }
+        video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .input-group { margin-bottom: 14px; }
+        label { display: block; margin-bottom: 6px; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        input { width: 100%; padding: 12px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.95rem; outline: none; box-sizing: border-box; }
+        .btn { width: 100%; padding: 14px; background: var(--indigo); border: none; border-radius: 8px; color: #fff; font-weight: 700; font-size: 1rem; cursor: pointer; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #status-panel { margin-top: 15px; padding: 12px; border-radius: 8px; font-size: 0.88rem; text-align: center; display: none; font-weight: 600; }
+        .status-loading { background: rgba(99,102,241,0.12); color: var(--indigo-light); border: 1px solid rgba(99,102,241,0.2); }
+        .status-success { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.2); }
+        .status-error { background: rgba(244,63,94,0.12); color: var(--red); border: 1px solid rgba(244,63,94,0.2); }
+    </style>
 </head>
 <body>
 
-<div class="container" id="mainLayout">
-  <div id="browserError" class="error-box"></div>
-  
-  <div><div class="app-title">🎓 Student Terminal</div><div class="app-sub">Submit attendance directly over BLE wireless</div></div>
-  
-  <div class="card">
-    <div class="card-title">Personal Credentials</div>
-    <input type="text" id="stuName" placeholder="Enter Full Name" />
-    <input type="text" id="stuRoll" placeholder="Enter Roll Number" />
-  </div>
+<div class="card">
+    <div class="header">
+        <div class="logo-icon">AX</div>
+        <h2 id="flow-title">Local Biometric Registration</h2>
+    </div>
 
-  <button class="btn btn-primary" id="actionBtn" onclick="transmitAttendance()">Transmit Attendance Record</button>
-  
-  <div class="card"><div class="card-title">Console Terminal Connection Log</div><div id="statusLog">Awaiting validation parameters...</div></div>
-</div>
+    <div class="tabs">
+        <button class="tab-btn active" id="tab-reg" onclick="switchTab('reg')">Sign Up (Save)</button>
+        <button class="tab-btn" id="tab-login" onclick="switchTab('login')">Verify Face</button>
+    </div>
 
-<div class="container" id="successScreen">
-  <div style="font-size: 4rem;">🎉</div>
-  <div style="font-size: 1.6rem; font-weight: 800; color: #10b981;">Attendance Verified</div>
-  <p id="successMessage" style="color: #94a3b8; font-size: 0.95rem;"></p>
-  <button class="btn btn-primary" style="margin-top: 12px;" onclick="resetForm()">Submit Another Entry</button>
+    <div class="camera-container">
+        <video id="webcam" autoplay muted playsinline></video>
+    </div>
+
+    <div class="input-group" id="group-name">
+        <label for="name">Your Full Name</label>
+        <input type="text" id="name" placeholder="e.g. Rahul Das" autocomplete="off">
+    </div>
+
+    <div class="input-group">
+        <label for="roll">Roll Number</label>
+        <input type="text" id="roll" placeholder="e.g. B2-02" autocomplete="off">
+    </div>
+
+    <button class="btn" id="actionBtn" onclick="executeCoreBiometrics()">Scan & Save Face</button>
+    <div id="status-panel"></div>
 </div>
 
 <script>
-  const ROOM_SERVICE_UUID = '8ce255c0-200a-11e0-ac64-0800200c9a66';
-  const DATA_CHAR_UUID    = '8ce255c1-200a-11e0-ac64-0800200c9a66';
+    let currentMode = 'reg';
+    let modelsLoaded = false;
+    let localStream = null;
 
-  // CHECK COMPATIBILITY IMMEDIATELY
-  window.onload = function() {
-    const errorBox = document.getElementById('browserError');
-    if (!navigator.bluetooth) {
-      errorBox.style.display = 'block';
-      if (window.location.protocol !== 'https:') {
-        errorBox.innerHTML = "<strong>Security Error:</strong> Bluetooth requires an <b>HTTPS</b> connection. Local files or HTTP sites are blocked.";
-      } else {
-        errorBox.innerHTML = "<strong>Browser Error:</strong> Your browser doesn't support Web Bluetooth. Use <b>Chrome on Android</b> or <b>Bluefy on iPhone</b>.";
-      }
-      document.getElementById('actionBtn').disabled = true;
+    const SERVICE_UUID = "8ce255c0-200a-11e0-ac64-0800200c9a66";
+    const CHARACTERISTIC_UUID = "8ce255c1-200a-11e0-ac64-0800200c9a66";
+
+    function updateUIStatus(message, statusType) {
+        const panel = document.getElementById('status-panel');
+        panel.style.display = message ? 'block' : 'none';
+        if(message) { panel.className = `status-${statusType}`; panel.textContent = message; }
     }
-  };
 
-  function displayLog(msg) { document.getElementById('statusLog').innerHTML = msg; }
-
-  async function transmitAttendance() {
-    const name = document.getElementById('stuName').value.trim();
-    const roll = document.getElementById('stuRoll').value.trim();
-    const actionBtn = document.getElementById('actionBtn');
-
-    if (!name || !roll) { displayLog("⚠️ Please enter Name and Roll No."); return; }
-
-    const structuredPayload = `${name}|${roll}`;
-    actionBtn.disabled = true;
-    actionBtn.innerHTML = 'Connecting...';
-    displayLog("Searching for Teacher (Make sure Teacher clicked 'Start Hosting')...");
-
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [ROOM_SERVICE_UUID] }]
-      });
-
-      displayLog("Connecting...");
-      const server = await device.gatt.connect();
-      
-      // Delay for connection stability
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      displayLog("Pushing Record...");
-      const service = await server.getPrimaryService(ROOM_SERVICE_UUID);
-      const char = await service.getCharacteristic(DATA_CHAR_UUID);
-
-      const data = new TextEncoder().encode(structuredPayload);
-      await char.writeValue(data);
-
-      displayLog("✅ Success!");
-      setTimeout(() => server.disconnect(), 500);
-
-      document.getElementById('mainLayout').style.display = 'none';
-      document.getElementById('successScreen').style.display = 'flex';
-      document.getElementById('successMessage').innerText = `${name} (${roll}) - Recorded via Bluetooth.`;
-
-    } catch (err) {
-      console.error(err);
-      displayLog(`❌ Error: ${err.message}`);
-      actionBtn.disabled = false;
-      actionBtn.innerHTML = 'Transmit Attendance Record';
+    function switchTab(mode) {
+        currentMode = mode;
+        document.getElementById('tab-reg').classList.toggle('active', mode === 'reg');
+        document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+        document.getElementById('group-name').style.display = mode === 'reg' ? 'block' : 'none';
+        document.getElementById('flow-title').textContent = mode === 'reg' ? 'Local Biometric Registration' : 'Local Attendance Portal';
+        document.getElementById('actionBtn').textContent = mode === 'reg' ? 'Scan & Save Face' : 'Verify & Transmit Over BLE';
+        updateUIStatus('', '');
+        stopCamera();
     }
-  }
 
-  function resetForm() { location.reload(); }
+    async function startCamera() {
+        if (!localStream) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: { width: 400, height: 300, facingMode: "user" } });
+                document.getElementById('webcam').srcObject = localStream;
+            } catch (err) {
+                updateUIStatus("❌ Camera failed. Please grant camera access permissions.", "error");
+            }
+        }
+    }
+
+    function stopCamera() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+    }
+
+    async function loadBiometricModels() {
+        if (!modelsLoaded) {
+            updateUIStatus("🤖 Downloading lightweight face models from CDN...", "loading");
+            const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
+            await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+            await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+            modelsLoaded = true;
+        }
+    }
+
+    async function executeCoreBiometrics() {
+        const name = document.getElementById('name').value.trim();
+        const roll = document.getElementById('roll').value.trim();
+        const actionBtn = document.getElementById('actionBtn');
+
+        if (!roll || (currentMode === 'reg' && !name)) {
+            updateUIStatus("⚠️ Please complete the form details first.", "error");
+            return;
+        }
+
+        actionBtn.disabled = true;
+        await loadBiometricModels();
+        await startCamera();
+        
+        // Give the camera a brief moment to stabilize brightness 
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        updateUIStatus("📸 Analyzing face features... Keep still.", "loading");
+
+        const video = document.getElementById('webcam');
+        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+
+        if (!detection) {
+            updateUIStatus("❌ No face detected. Look directly at the camera and try again.", "error");
+            actionBtn.disabled = false;
+            return;
+        }
+
+        // Convert the face matrix numbers into a clean array
+        const faceVectorArray = Array.from(detection.descriptor);
+
+        if (currentMode === 'reg') {
+            // MOCK REGISTER: Save directly to the browser storage
+            const mockDbKey = `attendx_user_${roll}`;
+            const profileData = {
+                name: name,
+                rollNumber: roll,
+                faceEmbedding: faceVectorArray
+            };
+            
+            localStorage.setItem(mockDbKey, JSON.stringify(profileData));
+            updateUIStatus(`🎉 Saved! Face data stored in browser memory for Roll: ${roll}`, "success");
+            stopCamera();
+            actionBtn.disabled = false;
+        } else {
+            // MOCK VERIFY: Read from browser storage and compare
+            const mockDbKey = `attendx_user_${roll}`;
+            const storedProfileString = localStorage.getItem(mockDbKey);
+
+            if (!storedProfileString) {
+                updateUIStatus("❌ No biometric data found for this Roll Number. Sign up first!", "error");
+                actionBtn.disabled = false;
+                return;
+            }
+
+            const profile = JSON.parse(storedProfileString);
+            const savedDescriptor = new Float32Array(profile.faceEmbedding);
+            
+            // Mathematical check to calculate difference between your stored face and live face
+            const distance = faceapi.euclideanDistance(detection.descriptor, savedDescriptor);
+            
+            // Lower value means a closer match. 0.6 is standard threshold
+            if (distance < 0.6) {
+                updateUIStatus("✅ Face matched perfectly! Activating Web Bluetooth scan...", "loading");
+                stopCamera();
+                await fireBleHandshake(profile.name, profile.rollNumber);
+            } else {
+                updateUIStatus(`❌ Identity match failed! Access Denied.`, "error");
+                actionBtn.disabled = false;
+            }
+        }
+    }
+
+    async function fireBleHandshake(name, roll) {
+        if (!navigator.bluetooth) {
+            updateUIStatus("❌ Web Bluetooth not supported on this browser. Try Chrome/Edge.", "error");
+            document.getElementById('actionBtn').disabled = false;
+            return;
+        }
+        try {
+            const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+            const payloadString = `${name}|${roll}|00:1A:2B:3C:4D:5E`;
+            const dataBuffer = new TextEncoder().encode(payloadString);
+            await characteristic.writeValueWithResponse(dataBuffer);
+
+            updateUIStatus("🎉 Attendance verified and transmitted over BLE successfully!", "success");
+            setTimeout(() => { device.gatt.disconnect(); document.getElementById('actionBtn').disabled = false; }, 2000);
+        } catch(e) {
+            updateUIStatus(`⚠️ Biometrics passed! (Bluetooth box opened, but connection cancelled or timed out).`, "error");
+            document.getElementById('actionBtn').disabled = false;
+        }
+    }
 </script>
 </body>
 </html>
